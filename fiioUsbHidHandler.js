@@ -8,7 +8,7 @@ const PEQ_FILTER_COUNT=  24;
 const PEQ_GLOBAL_GAIN = 23;
 const PEQ_FILTER_PARAMS = 21;
 const PEQ_PRESET_SWITCH = 22;
-const MAX_FILTERS = 5;  // JA11 only has 5
+
 
 window.fiioUsbHID = {
     connect: async function(device) {
@@ -85,7 +85,8 @@ window.fiioUsbHID = {
 
             setGlobalGain(device, preamp );
 
-            let maxFiltersToUse = filters.length > MAX_FILTERS ? MAX_FILTERS : filters.length;
+            let maxFilters = getModelConfig(device).maxFilters;
+            let maxFiltersToUse = filters.length > maxFilters ? maxFilters : filters.length;
             setPeqCounter(device, maxFiltersToUse);
 
             for (filterIdx = 0; filterIdx < maxFiltersToUse; filterIdx++) {
@@ -207,6 +208,7 @@ window.fiioUsbHID = {
 
         function handlePeqParams(data) {
             // Extract filter details and store them in the filters array
+            const slot = data[6];
             const gain = signedCombine(data[7], data[8]) / 10;
             const frequency = (data[9] << 8) | data[10];
             const qFactor = ((data[11] << 8) | data[12]) / 100 || 1;
@@ -215,7 +217,7 @@ window.fiioUsbHID = {
             console.log("Filter Details - Gain: ", gain, " Frequency: ", frequency, " Q: ", qFactor, " Type: ", filterType);
 
             // Store the filter information
-            filters.push({
+            updateFilterAtIndex(filters, slot, {
                 type: filterType,
                 freq: frequency,
                 q: qFactor,
@@ -226,6 +228,16 @@ window.fiioUsbHID = {
             if (filters.length >= peqCount) {
                 filtersPopulated = true; // Mark filters as fully populated
             }
+        }
+
+        function updateFilterAtIndex(filters, index, value) {
+            // Check if the index is greater than or equal to the current length of the array
+            if (index >= filters.length) {
+                // Expand the array by pushing `undefined` or another default value
+                filters.length = index + 1; // Set the length to the new index
+            }
+            // Update the specific index with the new value
+            filters[index] = value;
         }
 
         // Promise that resolves when filters are populated or times out after 10 seconds
@@ -246,6 +258,7 @@ window.fiioUsbHID = {
                 }
             }, 100); // Poll every 100ms
         });
+        filters.length = 0; // Make sure we have no filters
 
         // Start the process by requesting the PEQ counter and global gain
         getPeqCounter(device);
@@ -285,5 +298,26 @@ function splitUnsignedValue(value) {
     const highByte = (value >> 8) & 0xFF; // Extract the high byte
     const lowByte = value & 0xFF;         // Extract the low byte
     return [highByte, lowByte];
+}
+
+function getModelConfig(device) {
+    // Assuming `device` is a string representing the device model
+    const configuration = modelConfiguration[device];
+
+    // Check if configuration exists for the given device
+    if (configuration) {
+        return configuration;
+    } else {
+        return modelConfiguration["default"];
+    }
+}
+
+let modelConfiguration = {
+    "default": {minGain: -12, maxGain: 12, maxFilters: 5},
+    "FIIO Q7": {minGain: -12, maxGain: 12, maxFilters: 5},
+    "FIIO KA17": {minGain: -12, maxGain: 12, maxFilters: 10},
+    "JadeAudio JA11": {minGain: -12, maxGain: 12, maxFilters: 5},
+    "FIIO BTR13": {minGain: -12, maxGain: 12, maxFilters: 5},
+    "FIIO KA15": {minGain: -12, maxGain: 12, maxFilters: 5}
 }
 

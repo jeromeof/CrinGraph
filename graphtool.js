@@ -2774,8 +2774,6 @@ function addExtra() {
                     if (filters.length > 0) {
                         filtersToElem(filters);
                         applyEQ();
-                    } else {
-                        alert("no filter found.");
                     }
                 });
             }

@@ -10,12 +10,17 @@ window.UsbHIDConnector = (function() {
 
     let devices = [];
 
+    // Handlers - code to handle the vendor specific implementation of the USBHID
     let deviceHandlers = {
         "FiiO": {
             "JadeAudio JA11": fiioUsbHID,
-            "FiiO KA17":     fiioUsbHID,
+            "FIIO KA17":  fiioUsbHID,
+            "FIIO Q7":    fiioUsbHID,
+            "FIIO BTR13": fiioUsbHID,
+            "FIIO KA15":  fiioUsbHID
+
         }
-        // Add more manufacturers and models here
+        // Add more manufacturers, models and then handlers here
     };
 
     let isWebHIDSupported = function () {
@@ -25,25 +30,25 @@ window.UsbHIDConnector = (function() {
 
     let getDeviceConnected = async function() {
         try {
-            const filters = [
-                {"vendorId": 10610, "manufacturer":"FiiO", "productNames":["JadeAudio JA11"]}  // FiiO - add more when I get more examples
+            const vendorToManufacturer = [
+                {"vendorId": 10610, "manufacturer":"FiiO"}  // FiiO - add more when I get more examples
             ];
 
             // Check if the device is already connected
-            let existingDevice = devices.find(d => d.rawDevice.vendorId === filters[0].vendorId);
+            let existingDevice = devices.find(d => d.rawDevice.vendorId === vendorToManufacturer[0].vendorId);
             if (existingDevice) {
                 console.log("Device already connected:", existingDevice.model);
                 return existingDevice;
             }
 
-            // Request devices matching the filters
-            const selectedDevices = await navigator.hid.requestDevice({ filters });
+            // Request devices matching the filters - only show supported devices in popup
+            const selectedDevices = await navigator.hid.requestDevice({ filters: vendorToManufacturer });
 
             if (selectedDevices.length > 0) {
                 // Select the first device and store it as the current device
                 const rawDevice = selectedDevices[0];
 
-                const manufacturer = filters[0].manufacturer;
+                const manufacturer = vendorToManufacturer[0].manufacturer;
                 const model = rawDevice.productName;    // Model == productName
 
                 console.log("Manufacturer:", manufacturer);
