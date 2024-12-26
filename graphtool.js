@@ -290,6 +290,8 @@ function fmtX(xa) {
     xAxis(xa);
     (xa.selection ? xa.selection() : xa).select(".domain").remove();
     xa.selectAll(".tick line")
+      .attr("y1", 10)
+      .attr("y2", 312)
       .attr("stroke", "#333")
       .attr("stroke-width", (_,i) => tickThickness[getTickType(i)]);
     xa.selectAll(".tick text").filter((_,i) => tickPattern[i%8] === 0)
@@ -795,6 +797,7 @@ function loadFiles(p, callback) {
             alert("Headphone not found!");
         } else {
             let ch = frs.map(f => f && Equalizer.interp(f_values, tsvParse(f)));
+            ch = ch.filter(c => c !== null);
             callback(ch);
         }
     });
@@ -994,7 +997,7 @@ function setCurves(p, avg, lr, samp) {
     if (samp===undefined) samp = avg ? false : LR.length===1||p.ssamp||false;
     else { p.ssamp = samp; if (samp) avg = false; }
     let dx = +avg - +p.avg,
-        n  = sampnums.length,
+        n  = p.channels.length/2,
         selCh = (l,i) => l.slice(i*n,(i+1)*n);
     p.avg = avg;
     p.samp = samp = n>1 && samp;
@@ -2089,29 +2092,48 @@ copyUrlInit();
 // Theme Chooser
 function themeChooser(command) {
     let docBody = document.querySelector("body"),
-        darkClass = "dark-mode",
-        darkModePref = localStorage.getItem("dark-mode-pref");
+        themeButton = document.querySelector("button#theme"),
+        themeCurrent = themeButton.getAttribute("current-theme");
     
-    if ( darkModePref ) {
-        if ( command === "change") {
-            localStorage.removeItem("dark-mode-pref");
-            docBody.classList.remove(darkClass);
+    // If a change event, make changes to state
+    if (command === "change") {
+        if (themeCurrent === "theme-dark") {
+            localStorage.setItem("theme-pref", "theme-contrast");
+        } else if (themeCurrent === "theme-contrast") {
+            localStorage.setItem("theme-pref", "theme-default");
         } else {
-            docBody.classList.add(darkClass);
-        }
-    } else {
-        if ( command === "change" ) {
-            localStorage.setItem("dark-mode-pref", "true");
-            docBody.classList.add(darkClass);
+            localStorage.setItem("theme-pref", "theme-dark");
         }
     }
+    
+    let themePref = localStorage.getItem("theme-pref");
+    
+    // Apply state
+    if (themePref === "theme-dark") {
+        docBody.classList.remove("theme-default", "theme-contrast");
+        docBody.classList.add("theme-dark");
+        themeButton.textContent = "contrast mode";
+        
+    } else if (themePref === "theme-contrast") {
+        docBody.classList.remove("theme-default", "theme-dark");
+        docBody.classList.add("theme-contrast");
+        themeButton.textContent = "default mode";
+        
+    } else {
+        docBody.classList.remove("theme-dark", "theme-contrast");
+        docBody.classList.add("theme-default");
+        themeButton.textContent = "dark mode";
+    }
+    
+    themeButton.setAttribute("current-theme", themePref);
 }
-if ( darkModeButton ) {
+if ( themingEnabled ) {
     let themeButton = document.createElement("button"),
         miscTools = document.querySelector("div.miscTools");
         
     themeButton.setAttribute("id", "theme");
     themeButton.textContent = "dark mode";
+    themeButton.setAttribute("current-theme", "theme-default");
     miscTools.append(themeButton);
     
     themeChooser();

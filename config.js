@@ -17,6 +17,7 @@ const init_phones = ["BKF"],            // Optional. Which graphs to display on 
       share_url = true,                             // If true, enables shareable URLs
       watermark_text = "CrinGraph",                 // Optional. Watermark appears behind graphs
       watermark_image_url = "cringraph-logo.svg",   // Optional. If image file is in same directory as config, can be just the filename
+      rig_description = "clone IEC 711",            // Optional. Labels the graph with a description of the rig used to make the measurement, e.g. "clone IEC 711"
       page_title = "CrinGraph",                     // Optional. Appended to the page title if share URLs are enabled
       page_description = "View and compare frequency response graphs for earphones",
       accessories = false,                          // If true, displays specified HTML at the bottom of the page. Configure further below
@@ -25,7 +26,7 @@ const init_phones = ["BKF"],            // Optional. Which graphs to display on 
       expandable = false,                           // Enables button to expand iframe over the top of the parent page
       expandableOnly = false,                       // Prevents iframe interactions unless the user has expanded it. Accepts "true" or "false" OR a pixel value; if pixel value, that is used as the maximum width at which expandableOnly is used
       headerHeight = '0px',                         // Optional. If expandable=true, determines how much space to leave for the parent page header
-      darkModeButton = true,                        // Adds a "Dark Mode" button the main toolbar to let users set preference
+      themingEnabled = true,                        // Enable user-toggleable themes (dark mode, contrast mode)
       targetDashed = false,                         // If true, makes target curves dashed lines
       targetColorCustom = false,                    // If false, targets appear as a random gray value. Can replace with a fixed color value to make all targets the specified color, e.g. "black"
       targetRestoreLastUsed = false,				// Restore user's last-used target settings on load
@@ -68,6 +69,12 @@ function watermark(svg) {
         wm.append("text")
             .attrs({x:0, y:70, "font-size":28, "text-anchor":"middle", "class":"graph-name"})
             .text(watermark_text);
+    }
+    
+    if ( rig_description ) {
+        wm.append("text")
+            .attrs({x:380, y:-134, "font-size":8, "text-anchor":"end", "class":"rig-description"})
+            .text("Measured on: " + rig_description);
     }
 }
 
