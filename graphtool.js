@@ -2847,21 +2847,21 @@ function addExtra() {
                         return;
                     }
 
-                    let phoneSelected = eqPhoneSelect.value;
-                    let phoneObj = phoneSelected && activePhones.find(
-                        p => p.fullName === phoneSelected && p.eq
-                    );
-
                     let filters = elemToFilters(true);
-                    if (!phoneObj || !filters.length) {
-                        alert("Please select a model and add at least one filter before pushing to the device.");
+                    if (!filters.length) {
+                        alert("Please have at least one filter before pushing to the device.");
                         return;
                     }
 
-                    let preamp = Equalizer.calc_preamp(
-                        phoneObj.rawChannels.find(c => c),
-                        phoneObj.eq.rawChannels.find(c => c)
-                    );
+                    function calc_eqdev_preamp(eq) {
+                        let maxGain = -12;
+                        for (let i = 0; i < filters.length; ++i) {
+                            maxGain = Math.max(maxGain, filters[i].gain);
+                        }
+                        return maxGain;
+                    }
+
+                    let preamp = 12 - calc_eqdev_preamp(filters)
 
                     await UsbHIDConnector.pushToDevice(device, selectedSlot, preamp, filters);
                 } catch (error) {

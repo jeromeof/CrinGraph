@@ -176,12 +176,12 @@ async function setPresetPeq(device, presetId ) { // Default to 0 if not specifie
 }
 
 async function setGlobalGain(device, gain) {
-    const globalGain = Math.round(gain * 100);
+    const globalGain = Math.round(gain * 10) ;
     const gainBytes = toBytePair(globalGain);
 
     const packet = [
         SET_HEADER1, SET_HEADER2, 0, 0, PEQ_GLOBAL_GAIN, 2,
-        gainBytes[0], gainBytes[1], 0, END_HEADERS
+        gainBytes[1], gainBytes[0], 0, END_HEADERS
     ];
 
     const data = new Uint8Array(packet);
@@ -330,7 +330,7 @@ function handlePeqParams(data, device, filters) {
 }
 
 function handleGlobalGain(data, device) {
-    const globalGain = combineBytes(data[7], data[6]) / 100;
+    const globalGain = combineBytes(data[7], data[6]) / 10;
     console.log("Global Gain:", globalGain);
     // You can store or apply the global gain as needed
     return globalGain;
