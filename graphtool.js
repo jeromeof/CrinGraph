@@ -1,4 +1,3 @@
-
 let doc = d3.select(".graphtool");
 doc.html(`
   <svg style="display: none;">
@@ -182,12 +181,26 @@ doc.html(`
                 <button class="readme">Readme</button>
                 <button class="import-filters">Import</button>
                 <button class="export-filters">Export</button>
-                <button hidden="true" class="pull-filters-fromdevice">Pull From Device</button>
-                <button hidden="true" class="push-filters-todevice">Push To Device</button>
                 <button class="export-graphic-filters">Export Graphic EQ (For Wavelet)</button>
               </div>
               <a style="display: none" id="file-filters-export"></a>
               <form style="display:none"><input type="file" id="file-filters-import" accept=".txt" /></form>
+            </div>
+            <div class="device-eq disabled" id="deviceEqArea">
+                <h5>Device PEQ</h5>
+                 <div class="settings-row">
+                    <button class="connect-device">Connect To USB Device</button>
+                    <button class="disconnect-device">Disconnect From <span id="deviceName">None</span></button>
+                </div>
+                <div class="peq-slot-area">
+                    <select name="device-peq-slot" id="device-peq-slot-dropdown">
+                        <option value="None" selected>Select PEQ Slot</option>
+                    </select>
+                </div>
+                <div class="filters-button">
+                    <button class="pull-filters-fromdevice">Pull From Device</button>
+                    <button class="push-filters-todevice">Push To Device</button>
+                </div>
             </div>
             <div class="extra-tone-generator">
               <h5>Tone Generator</h2>
@@ -2342,7 +2355,6 @@ function blurFocus() {
 }
 blurFocus();
 
-
 // Add extra feature
 function addExtra() {
     let extraButton = document.querySelector("div.select > div.selector-tabs > button.extra");
@@ -2759,72 +2771,124 @@ function addExtra() {
         }
     });
 
-
-    function updateButtonText(device) {
-        const pushButton = document.querySelector('.push-filters-todevice');
-        const pullButton = document.querySelector('.pull-filters-fromdevice');
-        if (device === undefined) {
-            // Remove "device" in the push and pull buttons
-            pushButton.textContent = "Push To Device";
-            pullButton.textContent = "Pull From Device";
-        } else {
-            // Remove "device" in the push and pull buttons
-            pushButton.textContent = pushButton.textContent.replace("To Device", device.model);
-            pullButton.textContent = pullButton.textContent.replace("From Device", device.model);
-        }
-    }
-
+    // Device EQ only valid if WebHID
     if (UsbHIDConnector.isWebHIDSupported()) {
+        document.addEventListener('DOMContentLoaded', () => {
+            const deviceEqUI = new DeviceEqUI();
 
-        // unhide the 2 new buttons
-        document.querySelector('.pull-filters-fromdevice').hidden = false;
-        document.querySelector('.push-filters-todevice').hidden = false;
+            // Show the Connect button if WebHID is supported
+            deviceEqUI.deviceEqArea.classList.remove('disabled');
+            deviceEqUI.connectButton.hidden = false;
+            deviceEqUI.disconnectButton.hidden = true;
 
-        // Add Event listener for "Pull From Device" button
-        document.querySelector('.pull-filters-fromdevice').addEventListener('click', async () => {
-
-            let connectedDevice = await UsbHIDConnector.getDeviceConnected();
-            // Update Push / Pull Button text to show device name
-            updateButtonText(connectedDevice);
-
-            if (typeof connectedDevice !== "undefined") {
-
-                // Proceed with pulling filters from the connected device
-                console.log('Pulling filters from device...');
-                UsbHIDConnector.pullFromDevice(connectedDevice, 0).then(filters => {
-                    // Update the filters now from the device
-                    if (filters.length > 0) {
-                        filtersToElem(filters);
-                        applyEQ();
+            // Event Listener for "Connect" Button
+            deviceEqUI.connectButton.addEventListener('click', async () => {
+                try {
+                    const device = await UsbHIDConnector.getDeviceConnected();
+                    if (device) {
+                        // Update UI to show connected state
+                        deviceEqUI.showConnectedState(device.model,
+                            await UsbHIDConnector.getAvailableSlots(device),
+                            await UsbHIDConnector.getCurrentSlot(device));
+                        // Optionally, you can automatically pull the current PEQ settings
+                        // await UsbHIDConnector.pullFromDevice(device, selectedSlot);
                     }
-                });
-            }
-        });
-
-        // Event listener for "Push To Device" button
-        document.querySelector('.push-filters-todevice').addEventListener('click', async () => {
-            let connectedDevice = await UsbHIDConnector.getDeviceConnected();
-            // Update Push / Pull Button text to show device name
-            updateButtonText(connectedDevice);
-
-            if (connectedDevice != null) {
-                // Proceed with pushing filters to the connected device
-                console.log('Pushing filters to device...');
-
-                let phoneSelected = eqPhoneSelect.value;
-                let phoneObj = phoneSelected && activePhones.filter(
-                    p => p.fullName == phoneSelected && p.eq)[0];
-                let filters = elemToFilters(true);
-                if (!phoneObj || !filters.length) {
-                    alert("Please select model and add at least one filter before push to device.");
-                    return;
+                } catch (error) {
+                    console.error("Error connecting to device:", error);
+                    alert("Failed to connect to the device.");
                 }
-                let preamp = Equalizer.calc_preamp(
-                    phoneObj.rawChannels.filter(c => c)[0],
-                    phoneObj.eq.rawChannels.filter(c => c)[0]);
+            });
 
-                await UsbHIDConnector.pushToDevice(connectedDevice, 0, preamp, filters);
-            }
+            // Event Listener for "Disconnect" Button
+            deviceEqUI.disconnectButton.addEventListener('click', async () => {
+                try {
+                    await UsbHIDConnector.disconnectDevice();
+                    deviceEqUI.showDisconnectedState();
+                } catch (error) {
+                    console.error("Error disconnecting from device:", error);
+                    alert("Failed to disconnect from the device.");
+                }
+            });
+
+            // Event Listener for "Pull" Button
+            deviceEqUI.pullButton.addEventListener('click', async () => {
+                try {
+                    const device = UsbHIDConnector.getCurrentDevice();
+                    const selectedSlot = deviceEqUI.peqDropdown.value;
+                    if (!device || !selectedSlot) {
+                        alert("No device connected or PEQ slot selected.");
+                        return;
+                    }
+
+                    // In UsbHIDConnector.js within the getDeviceConnected function or after device connection
+                    device.rawDevice.addEventListener('disconnect', () => {
+                        console.log("Device disconnected:", device.model);
+                        deviceEqUI.showDisconnectedState();
+                    });
+
+                    const result = await UsbHIDConnector.pullFromDevice(device, selectedSlot);
+                    if (result.filters.length > 0) {
+                        filtersToElem(result.filters);
+                        applyEQ();
+//                        alert("PEQ filters pulled successfully.");
+                    } else {
+                        alert("No PEQ filters found on the device.");
+                    }
+                } catch (error) {
+                    console.error("Error pulling PEQ filters:", error);
+                    alert("Failed to pull PEQ filters from the device.");
+                }
+            });
+
+            // Event Listener for "Push" Button
+            deviceEqUI.pushButton.addEventListener('click', async () => {
+                try {
+                    const device = UsbHIDConnector.getCurrentDevice();
+                    const selectedSlot = deviceEqUI.peqDropdown.value;
+                    if (!device || !selectedSlot) {
+                        alert("No device connected or PEQ slot selected.");
+                        return;
+                    }
+
+                    let phoneSelected = eqPhoneSelect.value;
+                    let phoneObj = phoneSelected && activePhones.find(
+                        p => p.fullName === phoneSelected && p.eq
+                    );
+
+                    let filters = elemToFilters(true);
+                    if (!phoneObj || !filters.length) {
+                        alert("Please select a model and add at least one filter before pushing to the device.");
+                        return;
+                    }
+
+                    let preamp = Equalizer.calc_preamp(
+                        phoneObj.rawChannels.find(c => c),
+                        phoneObj.eq.rawChannels.find(c => c)
+                    );
+
+                    await UsbHIDConnector.pushToDevice(device, selectedSlot, preamp, filters);
+                } catch (error) {
+                    console.error("Error pushing PEQ filters:", error);
+                    alert("Failed to push PEQ filters to the device.");
+                }
+            });
+            // Event Listener for PEQ Dropdown Change
+            deviceEqUI.peqDropdown.addEventListener('change', async (event) => {
+                const selectedValue = event.target.value;
+                console.log(`PEQ Slot selected: ${selectedValue}`);
+                const device = UsbHIDConnector.getCurrentDevice();
+
+                if (selectedValue === "-1") {
+                    // PEQ Disabled
+                    await UsbHIDConnector.enablePEQ(device, false, -1);
+                    console.log("PEQ Disabled selected.");
+                } else {
+                    // PEQ Enabled with selected slot
+                    const slotId = parseInt(selectedValue, 10);
+                    await UsbHIDConnector.enablePEQ(device, true, slotId);
+                    console.log(`PEQ Enabled for slot ID: ${slotId}`);
+                }
+            });
         });
     }
 }
@@ -3352,29 +3416,93 @@ function userConfigApplyNormalization() {
     userConfigApplicationActive = 0;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+class DeviceEqUI {
+    constructor() {
+        this.deviceEqArea = document.getElementById('deviceEqArea');
+        this.connectButton = this.deviceEqArea.querySelector('.connect-device');
+        this.disconnectButton = this.deviceEqArea.querySelector('.disconnect-device');
+        this.deviceNameElem = document.getElementById('deviceName');
+        this.peqSlotArea = this.deviceEqArea.querySelector('.peq-slot-area');
+        this.peqDropdown = document.getElementById('device-peq-slot-dropdown');
+        this.pullButton = this.deviceEqArea.querySelector('.pull-filters-fromdevice');
+        this.pushButton = this.deviceEqArea.querySelector('.push-filters-todevice');
 
-    // Function to detect if the browser is Chrome-based
-    function isChromeBasedBrowser() {
-        const userAgent = navigator.userAgent;
-
-        // Check for Chrome, Brave, Bing, Arc in the user agent string
-        const isChrome = userAgent.includes("Chrome") && !userAgent.includes("Edge") && !userAgent.includes("OPR") && !userAgent.includes("Edg");
-        return isChrome;
+        this.initializeUI();
     }
 
-// Function to hide buttons if not using a Chrome-based browser
-    function hideHidDeviceButtonsIfNotChromeBased() {
-        if (!isChromeBasedBrowser()) {
-            // Select the buttons you want to hide
-            const button1 = document.querySelector('.push-filters-todevice')
-            const button2 = document.querySelector('.pull-filters-fromdevice');
+    initializeUI() {
+        // Initially hide device details
+        this.disconnectButton.hidden = true;
+        this.pullButton.hidden = true;
+        this.pushButton.hidden = true;
+        this.peqDropdown.hidden = true;
+        this.peqSlotArea.hidden = true;
+    }
 
-            // Hide the buttons
-            button1.style.display = 'none';
-            button2.style.display = 'none';
+    showConnectedState(deviceName, availableSlots, currentSlot) {
+        this.connectButton.hidden = true;
+        this.disconnectButton.hidden = false;
+        this.deviceNameElem.textContent = deviceName;
+        this.populatePeqDropdown(availableSlots, currentSlot);
+        this.pullButton.hidden = false;
+        this.pushButton.hidden = false;
+        this.peqDropdown.hidden = false;
+        this.peqSlotArea.hidden = false;
+    }
+
+    showDisconnectedState() {
+        this.connectButton.hidden = false;
+        this.disconnectButton.hidden = true;
+
+        // Reset device name display
+        this.deviceNameElem.textContent = 'None';
+
+        // Reset and hide the PEQ dropdown
+        this.peqDropdown.innerHTML = '<option value="-1">PEQ Disabled</option>';
+        this.peqDropdown.hidden = true;
+        this.pullButton.hidden = true;
+        this.pushButton.hidden = true;
+        this.peqSlotArea.hidden = true;
+    }
+    showLoading(state) {
+        if (state) {
+            // Show loading spinner or disable buttons
+            this.pullButton.disabled = true;
+            this.pushButton.disabled = true;
+            // Add spinner element or class
+        } else {
+            // Hide loading spinner or enable buttons
+            this.pullButton.disabled = false;
+            this.pushButton.disabled = false;
+            // Remove spinner element or class
         }
     }
 
-    hideHidDeviceButtonsIfNotChromeBased();
-});
+    populatePeqDropdown(slots, currentSlot) {
+        // Clear existing options and add the default "PEQ Disabled" option
+        this.peqDropdown.innerHTML = '<option value="-1">PEQ Disabled</option>';
+
+        // Populate the dropdown with available slots
+        slots.forEach(slot => {
+            const option = document.createElement('option');
+            option.value = slot.id;
+            option.textContent = slot.name;
+            this.peqDropdown.appendChild(option);
+        });
+
+        // Set the selected option based on currentSlot
+        if (currentSlot === -1) {
+            // Select "PEQ Disabled"
+            this.peqDropdown.selectedIndex = 0;
+        } else {
+            // Attempt to select the option matching currentSlot
+            const matchingOption = Array.from(this.peqDropdown.options).find(option => option.value === String(currentSlot));
+            if (matchingOption) {
+                this.peqDropdown.value = currentSlot;
+            } else {
+                // If no matching option, default to "PEQ Disabled"
+                this.peqDropdown.selectedIndex = 0;
+            }
+        }
+    }
+}
