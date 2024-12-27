@@ -2790,8 +2790,10 @@ function addExtra() {
                         deviceEqUI.showConnectedState(device.model,
                             await UsbHIDConnector.getAvailableSlots(device),
                             await UsbHIDConnector.getCurrentSlot(device));
-                        // Optionally, you can automatically pull the current PEQ settings
-                        // await UsbHIDConnector.pullFromDevice(device, selectedSlot);
+                        device.rawDevice.addEventListener('disconnect', () => {
+                            console.log(`Device ${device.rawDevice.productName} has been disconnected.`);
+                            deviceEqUI.showDisconnectedState();
+                        });
                     }
                 } catch (error) {
                     console.error("Error connecting to device:", error);
@@ -2820,12 +2822,6 @@ function addExtra() {
                         return;
                     }
 
-                    // In UsbHIDConnector.js within the getDeviceConnected function or after device connection
-                    device.rawDevice.addEventListener('disconnect', () => {
-                        console.log("Device disconnected:", device.model);
-                        deviceEqUI.showDisconnectedState();
-                    });
-
                     const result = await UsbHIDConnector.pullFromDevice(device, selectedSlot);
                     if (result.filters.length > 0) {
                         filtersToElem(result.filters);
@@ -2836,7 +2832,8 @@ function addExtra() {
                     }
                 } catch (error) {
                     console.error("Error pulling PEQ filters:", error);
-                    alert("Failed to pull PEQ filters from the device.");
+                    await UsbHIDConnector.disconnectDevice();
+                    deviceEqUI.showDisconnectedState();
                 }
             });
 
@@ -2869,7 +2866,8 @@ function addExtra() {
                     await UsbHIDConnector.pushToDevice(device, selectedSlot, preamp, filters);
                 } catch (error) {
                     console.error("Error pushing PEQ filters:", error);
-                    alert("Failed to push PEQ filters to the device.");
+                    await UsbHIDConnector.disconnectDevice();
+                    deviceEqUI.showDisconnectedState();
                 }
             });
             // Event Listener for PEQ Dropdown Change

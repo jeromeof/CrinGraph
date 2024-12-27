@@ -86,8 +86,21 @@ window.UsbHIDConnector = (function() {
             }
         }
     };
+    const checkDeviceConnected = async (device) => {
+        const devices = await navigator.hid.getDevices();
+        var connected =  devices.some(d => d === device);
+        if (!connected) {
+            console.error("Device disconnected?");
+            alert('Device disconnected?');
+            return false;
+        }
+        return true;
+    };
 
     const pushToDevice = async (device, slot, preamp, filters) => {
+        if (!await checkDeviceConnected(device.rawDevice)) {
+            throw Error("Device Disconnected");
+        }
         if (device && device.handler) {
             await device.handler.pushToDevice(device.rawDevice, slot, preamp, filters);
         } else {
@@ -110,6 +123,9 @@ window.UsbHIDConnector = (function() {
     };
 
     const pullFromDevice = async (device, slot) => {
+        if (!await checkDeviceConnected(device.rawDevice)) {
+            throw Error("Device Disconnected");
+        }
         if (device && device.handler) {
             return await device.handler.pullFromDevice(device.rawDevice, slot);
         } else {
