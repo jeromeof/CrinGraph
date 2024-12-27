@@ -2774,7 +2774,6 @@ function addExtra() {
     // Device EQ only valid if WebHID
     if (UsbHIDConnector.isWebHIDSupported()) {
         document.addEventListener('DOMContentLoaded', () => {
-            const deviceEqUI = new DeviceEqUI();
 
             // Show the Connect button if WebHID is supported
             deviceEqUI.deviceEqArea.classList.remove('disabled');
@@ -3504,3 +3503,5 @@ class DeviceEqUI {
         }
     }
 }
+const deviceEqUI = new DeviceEqUI();
+
