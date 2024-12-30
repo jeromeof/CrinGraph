@@ -2774,7 +2774,6 @@ function addExtra() {
     // Device EQ only valid if WebHID
     if (UsbHIDConnector.isWebHIDSupported()) {
         document.addEventListener('DOMContentLoaded', () => {
-            const deviceEqUI = new DeviceEqUI();
 
             // Show the Connect button if WebHID is supported
             deviceEqUI.deviceEqArea.classList.remove('disabled');
@@ -2847,23 +2846,28 @@ function addExtra() {
                         return;
                     }
 
-                    let phoneSelected = eqPhoneSelect.value;
-                    let phoneObj = phoneSelected && activePhones.find(
-                        p => p.fullName === phoneSelected && p.eq
-                    );
-
                     let filters = elemToFilters(true);
-                    if (!phoneObj || !filters.length) {
-                        alert("Please select a model and add at least one filter before pushing to the device.");
+                    if (!filters.length) {
+                        alert("Please have at least one filter before pushing to the device.");
                         return;
                     }
 
-                    let preamp = Equalizer.calc_preamp(
-                        phoneObj.rawChannels.find(c => c),
-                        phoneObj.eq.rawChannels.find(c => c)
-                    );
+                    function calc_eqdev_preamp(eq) {
+                        var maxGain = -12;
+                        for (let i = 0; i < filters.length; ++i) {
+                            maxGain = Math.max(maxGain, filters[i].gain);
+                        }
+                        return maxGain;
+                    }
 
-                    await UsbHIDConnector.pushToDevice(device, selectedSlot, preamp, filters);
+                    let preamp_gain = calc_eqdev_preamp( filters)
+
+                    let disconnect = await UsbHIDConnector.pushToDevice(device, selectedSlot, preamp_gain, filters);
+                    if (disconnect) {
+                        await UsbHIDConnector.disconnectDevice();
+                        deviceEqUI.showDisconnectedState();
+                        alert("PEQ Saved - Restarting");
+                    }
                 } catch (error) {
                     console.error("Error pushing PEQ filters:", error);
                     await UsbHIDConnector.disconnectDevice();
@@ -3504,3 +3508,5 @@ class DeviceEqUI {
         }
     }
 }
+const deviceEqUI = new DeviceEqUI();
+
