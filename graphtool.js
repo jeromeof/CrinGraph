@@ -2853,16 +2853,21 @@ function addExtra() {
                     }
 
                     function calc_eqdev_preamp(eq) {
-                        let maxGain = -12;
+                        var maxGain = -12;
                         for (let i = 0; i < filters.length; ++i) {
                             maxGain = Math.max(maxGain, filters[i].gain);
                         }
                         return maxGain;
                     }
 
-                    let preamp = 12 - calc_eqdev_preamp(filters)
+                    let preamp_gain = calc_eqdev_preamp( filters)
 
-                    await UsbHIDConnector.pushToDevice(device, selectedSlot, preamp, filters);
+                    let disconnect = await UsbHIDConnector.pushToDevice(device, selectedSlot, preamp_gain, filters);
+                    if (disconnect) {
+                        await UsbHIDConnector.disconnectDevice();
+                        deviceEqUI.showDisconnectedState();
+                        alert("PEQ Saved - Restarting");
+                    }
                 } catch (error) {
                     console.error("Error pushing PEQ filters:", error);
                     await UsbHIDConnector.disconnectDevice();

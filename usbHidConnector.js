@@ -102,10 +102,11 @@ window.UsbHIDConnector = (function() {
             throw Error("Device Disconnected");
         }
         if (device && device.handler) {
-            await device.handler.pushToDevice(device.rawDevice, slot, preamp, filters);
+            return await device.handler.pushToDevice(device.rawDevice, slot, preamp, filters);
         } else {
             console.error("No device handler available for pushing.");
         }
+        return true;   // Disconnect anyway
     };
 
     // Helper Function to Get Available 'Custom' Slots Based on the Device that we can write too
