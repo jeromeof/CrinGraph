@@ -3435,6 +3435,7 @@ class DeviceEqUI {
     initializeUI() {
         // Initially hide device details
         this.disconnectButton.hidden = true;
+        this.connectButton.hidden = true;
         this.pullButton.hidden = true;
         this.pushButton.hidden = true;
         this.peqDropdown.hidden = true;
