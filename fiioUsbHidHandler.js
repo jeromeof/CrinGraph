@@ -4,16 +4,17 @@
 // Define the shared logic for JadeAudio / FiiO devices - Each manufacturer will have slightly
 // different code so best to each have a separate 'module'
 
-const PEQ_FILTER_COUNT = 24;
-const PEQ_GLOBAL_GAIN = 23;
-const PEQ_FILTER_PARAMS = 21;
-const PEQ_PRESET_SWITCH = 22;
-const PEQ_SAVE_TO_DEVICE = 25;
-const PEQ_RESET_DEVICE = 27;
-const PEQ_RESET_ALL = 28;
+const PEQ_FILTER_COUNT = 0x18; // 24 in hex
+const PEQ_GLOBAL_GAIN = 0x17; // 23 in hex
+const PEQ_FILTER_PARAMS = 0x15; // 21 in hex
+const PEQ_PRESET_SWITCH = 0x16; // 22 in hex
+const PEQ_SAVE_TO_DEVICE = 0x19; // 25 in hex
+const PEQ_RESET_DEVICE = 0x1B; // 27 in hex
+const PEQ_RESET_ALL = 0x1C; // 28 in hex
+
 // Note these have different headers
-const PEQ_FIRMWARE_VERSION = 11;
-const PEQ_NAME_DEVICE = 48;
+const PEQ_FIRMWARE_VERSION = 0x0B; // 11 in hex
+const PEQ_NAME_DEVICE = 0x30; // 48 in hex
 
 const SET_HEADER1 = 0xAA;
 const SET_HEADER2 = 0x0A;
@@ -66,8 +67,9 @@ const fiioUsbHID = {
 
     pushToDevice: async function(device, slot, preamp_gain, filters) {
         try {
-            // FiiO devices will automatically cut the maxGain (typically -12)
-            // But we can safely apply a +12 gain - the preamp_gain needed
+            // FiiO devices will automatically cut the max SPL by the maxGain (typically -12)
+            // So, we can safely apply a +12 gain - the larged preamp_gain needed
+            // .e.g. if we need to +5dB for a filter then we can still make the globalGain 7dB
             await setGlobalGain(device, getModelConfig(device).maxGain - preamp_gain);
             const maxFilters = getModelConfig(device).maxFilters;
             const maxFiltersToUse = Math.min(filters.length, maxFilters);
@@ -75,7 +77,12 @@ const fiioUsbHID = {
 
             for (let filterIdx = 0; filterIdx < maxFiltersToUse; filterIdx++) {
                 const filter = filters[filterIdx];
-                await setPeqParams(device, filterIdx, filter.freq, filter.gain, filter.q, convertFromFilterType(filter.type));
+                var gain = 0;   // If disabled we still need to reset to 0 gain as previous gain value will
+                                        // still be active
+                if (!filter.disabled) {
+                    gain = filter.gain;
+                }
+                await setPeqParams(device, filterIdx, filter.freq, gain, filter.q, convertFromFilterType(filter.type));
             }
 
             saveToDevice(device, slot);
@@ -327,7 +334,7 @@ function handlePeqParams(data, device, filters) {
         freq: frequency,
         q: qFactor,
         gain: gain,
-        disabled: false
+        disabled: (gain || frequency || qFactor) ? false : true // Disable filter if 0 value found
     };
 }
 

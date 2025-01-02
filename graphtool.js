@@ -2855,9 +2855,11 @@ function addExtra() {
                     function calc_eqdev_preamp(eq) {
                         var maxGain = -12;
                         for (let i = 0; i < filters.length; ++i) {
-                            maxGain = Math.max(maxGain, filters[i].gain);
+                            if (!filters[i].disabled) {
+                                maxGain = Math.max(maxGain, filters[i].gain);
+                            }
                         }
-                        return maxGain;
+                        return Math.max(0,maxGain); // In case maxGain is still negative
                     }
 
                     let preamp_gain = calc_eqdev_preamp( filters)
