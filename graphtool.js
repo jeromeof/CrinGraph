@@ -2852,14 +2852,17 @@ function addExtra() {
                         return;
                     }
 
+                    // Re-use existing gain calculation as more accurate than my first attempt
                     function calc_eqdev_preamp(eq) {
-                        var maxGain = -12;
-                        for (let i = 0; i < filters.length; ++i) {
-                            if (!filters[i].disabled) {
-                                maxGain = Math.max(maxGain, filters[i].gain);
-                            }
-                        }
-                        return Math.max(0,maxGain); // In case maxGain is still negative
+                        let phoneSelected = eqPhoneSelect.value;
+                        let phoneObj = phoneSelected && activePhones.filter(
+                            p => p.fullName == phoneSelected && p.eq)[0];
+
+                        let preamp = Equalizer.calc_preamp(
+                            phoneObj.rawChannels.filter(c => c)[0],
+                            phoneObj.eq.rawChannels.filter(c => c)[0]);
+
+                        return preamp;
                     }
 
                     let preamp_gain = calc_eqdev_preamp( filters)

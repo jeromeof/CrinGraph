@@ -70,7 +70,7 @@ const fiioUsbHID = {
             // FiiO devices will automatically cut the max SPL by the maxGain (typically -12)
             // So, we can safely apply a +12 gain - the larged preamp_gain needed
             // .e.g. if we need to +5dB for a filter then we can still make the globalGain 7dB
-            await setGlobalGain(device, getModelConfig(device).maxGain - preamp_gain);
+            await setGlobalGain(device, getModelConfig(device).maxGain + preamp_gain);
             const maxFilters = getModelConfig(device).maxFilters;
             const maxFiltersToUse = Math.min(filters.length, maxFilters);
             await setPeqCounter(device, maxFiltersToUse);
